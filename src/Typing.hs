@@ -7,21 +7,22 @@ import qualified Data.Map as Mp
 infixl 4 :@
 infixr 3 :->
 
-type Symb = String 
+type VarSymb = String 
+type TypeSymb = String 
 
 -- Терм
-data Expr = Var Symb
+data Expr = Var VarSymb
           | Expr :@ Expr
-          | Lam Symb Type Expr
+          | Lam VarSymb Type Expr
   deriving (Eq,Show)
 
 -- Тип
-data Type = TVar Symb 
+data Type = TVar TypeSymb 
           | Type :-> Type
   deriving (Eq,Show)
 
 -- Контекст
-newtype Env = Env (Mp.Map Symb Type)
+newtype Env = Env (Mp.Map VarSymb Type)
   deriving (Eq,Show)
 
 
