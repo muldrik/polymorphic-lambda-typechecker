@@ -33,7 +33,10 @@ common shared
 library
     import: shared
     hs-source-dirs: src
-    exposed-modules: Dummy
+    exposed-modules: 
+      Dummy,
+      Typing,
+      PolymorphicTyping
 
 executable typechecker-executable
     import: shared
@@ -42,10 +45,11 @@ executable typechecker-executable
 
 Test-Suite typechecker-test
     type:       exitcode-stdio-1.0
-    main-is:    test.hs
+    main-is:    Test.hs
     hs-source-dirs: tests
     build-depends: 
         base,
+        typechecker,
         tasty ^>=1.4,
         tasty-hunit,
         tasty-quickcheck

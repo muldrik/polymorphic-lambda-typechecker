@@ -1,4 +1,8 @@
 module Typing where
+import Data.Foldable
+import Data.Maybe
+import Control.Monad
+import qualified Data.Map as Mp
 
 infixl 4 :@
 infixr 3 :->
@@ -17,12 +21,25 @@ data Type = TVar Symb
   deriving (Eq,Show)
 
 -- Контекст
-newtype Env = Env [(Symb,Type)]
+newtype Env = Env (Mp.Map Symb Type)
   deriving (Eq,Show)
 
 
-checkType :: Env -> Expr -> Type -> Bool
-checkType env (Var x) (TVar t) = undefined 
 
-kek x y = x + y
+deriveType :: Env -> Expr -> Maybe Type
+deriveType (Env env) (Var x) = Mp.lookup x env
+
+deriveType environment (e1 :@ e2) = do 
+  (argExpected :-> ret) <- deriveType environment e1
+  argActual <- deriveType environment e2
+  guard $ argExpected == argActual
+  return ret
+
+deriveType (Env env) (Lam arg argType expr) = do
+  let newEnv = Env $ Mp.insert arg argType env
+  exprType <- deriveType newEnv expr
+  return $ argType :-> exprType 
+
+
+
 
