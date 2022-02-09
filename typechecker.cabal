@@ -33,6 +33,11 @@ common shared
 library
     import: shared
     hs-source-dirs: src
+    extensions: 
+      RankNTypes,
+      InstanceSigs,
+      NoMonomorphismRestriction,
+      ScopedTypeVariables
     exposed-modules: 
       Dummy,
       Typing,
@@ -51,6 +56,7 @@ Test-Suite typechecker-test
         base,
         typechecker,
         tasty ^>=1.4,
+        containers,
         tasty-hunit,
         tasty-quickcheck
     default-language: Haskell2010   

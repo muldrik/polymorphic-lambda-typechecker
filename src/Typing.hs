@@ -27,18 +27,18 @@ newtype Env = Env (Mp.Map VarSymb Type)
 
 
 
-deriveType :: Env -> Expr -> Maybe Type
-deriveType (Env env) (Var x) = Mp.lookup x env
+inferType :: Env -> Expr -> Maybe Type
+inferType (Env env) (Var x) = Mp.lookup x env
 
-deriveType environment (e1 :@ e2) = do 
-  (argExpected :-> ret) <- deriveType environment e1
-  argActual <- deriveType environment e2
+inferType environment (e1 :@ e2) = do 
+  (argExpected :-> ret) <- inferType environment e1
+  argActual <- inferType environment e2
   guard $ argExpected == argActual
   return ret
 
-deriveType (Env env) (Lam arg argType expr) = do
+inferType (Env env) (Lam arg argType expr) = do
   let newEnv = Env $ Mp.insert arg argType env
-  exprType <- deriveType newEnv expr
+  exprType <- inferType newEnv expr
   return $ argType :-> exprType 
 
 

@@ -3,19 +3,43 @@ import Test.Tasty.QuickCheck as QC
 import Test.Tasty
 import Test.Tasty.Providers.ConsoleFormat (ConsoleFormat(color))
 import System.Environment (setEnv)
-import Dummy(dummy)
+import qualified Data.Map as Mp
+import PolymorphicTyping
 
 main = do
     setEnv "TASTY_COLOR" "always"
-    defaultMain unitTests
+    defaultMain tests
+
+tests :: TestTree 
+tests = testGroup "Tests" [inferVarTests]
+
+bigEnv :: Env
+bigEnv = Env $ Mp.fromList [("zzz" ++ show i, TVar $ "alpha" ++ show i) | i <- [1..40000]]
 
 
-unitTests :: TestTree
-unitTests = testGroup "Unit tests" 
+inferVarTests = testGroup "Infer a single variable" 
     [
-    testCase "1+1=2" $ 1 + 1 @?= 2,
-    testCase "Call a function from project module" $ dummy 10 @?= 20
+        testCase "Type given in a context" $ let
+            var = "x"
+            expectedType = TVar "a"
+            env = Env $ Mp.fromList [(var, expectedType)] 
+                in  inferType env (Var var) @?= Just expectedType,
+        testCase "Empty context" $ let
+            var = "x"
+            expectedType = TVar "a"
+            env = Env $ Mp.empty 
+                in inferType env (Var var) @?= Nothing,
+        testCase "Large environment" $ let
+            var = "x"
+            expectedType = TVar "a"
+            env = insertToEnv var expectedType bigEnv
+                in inferType env (Var var) @?= Just expectedType
     ]
+
+
+
+typingProps = undefined
+
 
 
 --quickTests :: TestTree 

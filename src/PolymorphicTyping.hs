@@ -4,8 +4,6 @@ import Data.Foldable
 import Data.Maybe
 import Control.Monad
 import qualified Data.Map as Mp
-import System.Environment (getEnvironment)
-import GHC.ResponseFile (expandResponse)
 
 infixl 4 :@
 infixr 3 :->
@@ -34,30 +32,41 @@ newtype Env = Env (Mp.Map VarSymb Type)
 
 getFreshVar :: Env -> TypeSymb
 getFreshVar environment = helper environment 0 where
+    helper :: Env -> Int -> TypeSymb
     helper (Env env) index = let try = "sigma" ++ show index in
          if not (try `Mp.member` env) then try else helper (Env env) (index + 1)
+  
+
+insertToEnv :: VarSymb -> Type -> Env -> Env
+insertToEnv s t (Env env) = Env (Mp.insert s t env)
+
+removeFromEnv :: VarSymb -> Env -> Env
+removeFromEnv s (Env env) = Env (Mp.delete s env)
+
+emptyEnv :: Env
+emptyEnv = Env Mp.empty
 
 
-deriveType :: Env -> Expr -> Maybe Type
-deriveType (Env env) (Var x) = Mp.lookup x env
+inferType :: Env -> Expr -> Maybe Type
+inferType (Env env) (Var x) = Mp.lookup x env
 
-deriveType environment (e1 :@ e2) = do 
-  (argExpected :-> ret) <- deriveType environment e1
-  argActual <- deriveType environment e2
+inferType environment (e1 :@ e2) = do 
+  (argExpected :-> ret) <- inferType environment e1
+  argActual <- inferType environment e2
   guard $ argExpected == argActual
   return ret
 
-deriveType (Env env) (Lam arg argType expr) = do
+inferType (Env env) (Lam arg argType expr) = do
   let newEnv = Env $ Mp.insert arg argType env
-  exprType <- deriveType newEnv expr
+  exprType <- inferType newEnv expr
   return $ argType :-> exprType 
 
-deriveType environment (expr :$ typeArg) = do
-    (Forall typeArgExpected ret) <- deriveType environment expr
+inferType environment (expr :$ typeArg) = do
+    (Forall typeArgExpected ret) <- inferType environment expr
     guard $ TVar typeArgExpected == typeArg 
     return ret
 
-deriveType environment (BigLam arg expr) = do 
-    exprType <- deriveType environment expr 
+inferType environment (BigLam arg expr) = do 
+    exprType <- inferType environment expr 
     return $ Forall (getFreshVar environment) exprType
 
