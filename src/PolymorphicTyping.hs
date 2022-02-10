@@ -1,7 +1,5 @@
 module PolymorphicTyping where
 
-import Data.Foldable
-import Data.Maybe
 import Control.Monad
 import qualified Data.Map as Mp
 
