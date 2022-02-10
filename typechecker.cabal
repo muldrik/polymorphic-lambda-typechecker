@@ -39,9 +39,9 @@ library
       NoMonomorphismRestriction,
       ScopedTypeVariables
     exposed-modules: 
-      Dummy,
-      Typing,
-      PolymorphicTyping
+      PolymorphicTyping,
+      TypingIO,
+      Parser
 
 executable typechecker-executable
     import: shared

@@ -2,9 +2,17 @@
 module Parser where
 
 import Control.Applicative (Alternative(..))
+import Control.Monad (guard)
 
 newtype Parser tok a = 
   Parser { runParser :: [tok] ->  Maybe ([tok],a) }
+
+parserResult :: Parser tok a -> [tok] -> Maybe a
+parserResult p s = do 
+  (remainder, result) <- runParser p s
+  guard $ null remainder 
+  return result
+
 
 satisfy :: (tok -> Bool) -> Parser tok tok
 satisfy pr = Parser f where
