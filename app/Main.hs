@@ -46,7 +46,10 @@ parseArgs args = do
   expectedType <- parseType (args !! 2)
   return (env, expr, expectedType)
 
-
+--Assert there are 3 arguments
+--Attempt to parse each argument
+--If successful, execute type inference
+--If successful, check for alpha-equivalence
 main :: IO ()
 main = do
   args <- getArgs 

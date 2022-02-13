@@ -6,13 +6,15 @@ import Data.List(intercalate)
 import Control.Monad.Except
 import qualified Data.Set as St
 
+
 infixl 4 :@
+infixl 4 :$
 infixr 3 :->
 
 type VarSymb = String
 type TypeSymb = String 
 
--- Терм
+--Expression
 data Expr = Var VarSymb
           | Expr :@ Expr
           | Lam VarSymb Type Expr
@@ -20,7 +22,7 @@ data Expr = Var VarSymb
           | Expr :$ Type
   deriving (Eq, Show)
 
--- Тип
+--Type
 data Type = TVar VarSymb 
           | Type :-> Type
           | Forall TypeSymb Type
@@ -40,7 +42,7 @@ instance Show Type where
     showsPrec p t2
   
 
--- Контекст
+-- Environment
 newtype Env = Env (Mp.Map VarSymb Type)
   deriving (Eq)
 
@@ -49,20 +51,7 @@ instance Show Env where
   show (Env env) = let kek (var, t) = showString var . showString ": " $ show t in intercalate ", " $ map kek (Mp.toList env)
 
 
-
--- Choose a type name that doesn't appear in appear anywhere in the environment
-{-
-getFreshVar :: Env -> TypeSymb
-getFreshVar (Env env) = helper (Mp.elems env) 0 where
-    helper :: [Type] -> Int -> TypeSymb
-    helper types index = let 
-      attempt = "sigma" ++ show index
-      appearsAnywhere = any (\t -> attempt `St.member` freeTypeVars t) types
-        in if appearsAnywhere then helper types (index + 1) else attempt
-        -}
-
---Methods to use when exporting the module
-
+-- Abstracting out the implementation of methods operating with the environment. Currently uses a hash map
 infixr 4 ##
 (##) :: (VarSymb, Type) -> Env -> Env
 (##) = insertToEnv
@@ -83,6 +72,7 @@ emptyEnv :: Env
 emptyEnv = Env Mp.empty
 
 
+-- Stores error data to display if type inference fails
 data InferenceError = FreeVarNotInContext VarSymb |
                       MismatchedApplicationTypes Expr Type Expr Type |
                       NonForallTypeApplication Expr Type |
@@ -97,6 +87,7 @@ instance Show InferenceError where
   show (NonArrowApplication e1 t1 e2) = "Cannot apply expression " ++ show e2 ++ " to a non-arrow expression " ++ show e1 ++ " of type " ++ show t1
 
 
+-- Find all free type variables in a given type. Used to correctly rename type abstractions
 freeTVarsInType :: Type -> St.Set TypeSymb
 freeTVarsInType (TVar x) = St.singleton x
 freeTVarsInType (t1 :-> t2) = freeTVarsInType t1 `St.union` freeTVarsInType t2
@@ -110,6 +101,7 @@ freeTVarsInExpr (Lam _ t e) = freeTVarsInType t `St.union` freeTVarsInExpr e
 freeTVarsInExpr (BigLam t e) = t `St.delete` freeTVarsInExpr e 
 
 
+-- List of names to rename type abstractions
 infNameList :: [String]
 infNameList = ('t' :) . show <$> ([1..] :: [Integer])
 
@@ -121,7 +113,7 @@ chooseFreshName set = helper set infNameList where
 
 
 
---Substitube target symbol to type 1 inside of type 2
+-- Substitube target symbol to type 1 inside of type 2
 substSymb :: TypeSymb -> Type -> Type -> Type
 substSymb oldSym new (TVar t) = if t == oldSym then new else TVar t
 substSymb oldSym new (t1 :-> t2) = substSymb oldSym new t1 :-> substSymb oldSym new t2
@@ -133,7 +125,7 @@ substSymb oldSym new (Forall s t) | s == oldSym = Forall s t
                                                   forallSymbSubst = substSymb s (TVar freshForallName)
                                                   originalSubst = substSymb oldSym new
 
--- | Substitute type symbol for given type in a given expression. 
+-- Substitute type symbol for given type in a given expression. 
 -- Can rename type arguments in BigLambdas if they shadow newly substituted free type variables
 substTypeSymbInExpr :: TypeSymb -> Type -> Expr -> Expr
 substTypeSymbInExpr oldSym new (Lam argVar argType expr) = Lam argVar (substSymb oldSym new argType) (substTypeSymbInExpr oldSym new expr)
@@ -154,14 +146,14 @@ substTypeSymbInExpr oldSym new (e :$ t) = substTypeSymbInExpr oldSym new e :$ su
 
 
 
-
+-- In the given environment attempt to infer the type of an expression. Stop with an InferenceError if unsuccessful
 inferType :: Env -> Expr -> Except InferenceError Type
-inferType (Env env) (Var x) = case Mp.lookup x env of
+inferType (Env env) (Var x) = case Mp.lookup x env of -- Free variable type can only be found in the context
   Nothing -> throwError $ FreeVarNotInContext x  
   Just actual -> return actual
   
 
-inferType environment (e1 :@ e2) = do
+inferType environment (e1 :@ e2) = do -- Left side of an application must be have an arrow type, right side type must match the arrow argument
   leftType <- inferType environment e1
   case leftType of
     (argExpected :-> ret) -> do 
@@ -170,23 +162,24 @@ inferType environment (e1 :@ e2) = do
         else throwError $ MismatchedApplicationTypes e1 (argExpected :-> ret) e2 argActual 
     nonArrow -> throwError $ NonArrowApplication e1 nonArrow e2
 
-inferType (Env env) (Lam arg argType expr) = do
-  let newEnv = Env $ Mp.insert arg argType env
+inferType environment (Lam arg argType expr) = do -- If a variable was captured, treat it as it is in the context (if shadowed, rewrite its type)
+  let newEnv = insertToEnv (arg, argType) environment
   exprType <- inferType newEnv expr
   return $ argType :-> exprType 
 
-inferType environment (expr :$ typeArg) = do
+inferType environment (expr :$ typeArg) = do -- If a type is applied, ensure that the left side has a type of "@<symb>. _", then attempt to substitute the type on the right instead of the captured type symbol on the left
   leftType <- inferType environment expr
   case leftType of
     (Forall t e) -> return $ substSymb t typeArg e
     _ -> throwError $ NonForallTypeApplication expr typeArg
 
-inferType environment (BigLam arg expr) = do 
+inferType environment (BigLam arg expr) = do -- Straight from the System F wiki page
     exprType <- inferType environment expr  
     return $ Forall arg exprType
 
 
 
+-- Check whether 2 types are alpha-equivalent
 alphaEq :: Type -> Type -> Bool
 alphaEq (TVar a) (TVar b) = a == b
 alphaEq (t1 :-> t2) (t1' :-> t2') = alphaEq t1 t1' && alphaEq t2 t2'
