@@ -124,12 +124,12 @@ parserTests = testGroup "Parser tests"
             ],
         testGroup "Big lambda"
             [
-                testCase "standard notation: one argument" $ parserResult expression "$a . x" @?= Just (BigLam "a" (Var "x")),
-                testCase "standard notation: one argument" $ parserResult expression "$a . $ b. x" @?= Just (BigLam "a" (BigLam "b" (Var "x"))),
-                testCase "extended notation: multiple arguments" $ parserResult expression "$a b c . x" @?= Just (BigLam "a" (BigLam "b" (BigLam "c" (Var "x")))),
-                testCase "weird spacing" $ parserResult expression "   $   a . x" @?= Just (BigLam "a" (Var "x")),
-                testCase "weird brackets" $ parserResult expression "($a. ( (x )))" @?= Just (BigLam "a" (Var "x")),
-                testCase "application to a lambda" $ parserResult expression "($a . \\x : a. x) {b}" @?= Just (BigLam "a" (Lam "x" (TVar "a") (Var "x")) :$ TVar "b")
+                testCase "standard notation: one argument" $ parserResult expression "#a . x" @?= Just (BigLam "a" (Var "x")),
+                testCase "standard notation: one argument" $ parserResult expression "#a . # b. x" @?= Just (BigLam "a" (BigLam "b" (Var "x"))),
+                testCase "extended notation: multiple arguments" $ parserResult expression "#a b c . x" @?= Just (BigLam "a" (BigLam "b" (BigLam "c" (Var "x")))),
+                testCase "weird spacing" $ parserResult expression "   #   a . x" @?= Just (BigLam "a" (Var "x")),
+                testCase "weird brackets" $ parserResult expression "(#a. ( (x )))" @?= Just (BigLam "a" (Var "x")),
+                testCase "application to a lambda" $ parserResult expression "(#a . \\x : a. x) {b}" @?= Just (BigLam "a" (Lam "x" (TVar "a") (Var "x")) :$ TVar "b")
             ],
         testGroup "Type application"
             [

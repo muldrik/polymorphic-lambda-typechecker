@@ -19,14 +19,6 @@ var = Var <$> validVar
 varType :: Parser Char Type
 varType = TVar <$> validVarType
 
-typeLambda :: Parser Char Expr
-typeLambda = do
-  _ <- char '$'
-  _ <- spaces
-  arguments <- many (validVarType <* spaces)
-  _ <- char '.'
-  expr <- expression
-  return $ foldr BigLam expr arguments
 
 atomicType :: Parser Char Type 
 atomicType = varType <|> forallType
@@ -76,7 +68,7 @@ lambda = trimmingSpaces $ do
 
 bigLambda :: Parser Char Expr 
 bigLambda = trimmingSpaces $ do
-  _ <- char '$'
+  _ <- char '#'
   _ <- spaces
   arguments <- many (trimmingSpaces validVarType)
   _ <- char '.'
@@ -103,8 +95,12 @@ expression = trimmingSpaces $ do
     binding result (Right typeArg) = result :$ typeArg
 
 
+
+
 environmentParser :: Parser Char Env
 environmentParser = trimmingSpaces $ do
-  bindings <- many ((,) <$> trimmingSpaces validVar <* char ':' <*> trimmingSpaces typeParser)
-  return $ envFromList bindings
+  let bindingParser = (,) <$> trimmingSpaces validVar <* char ':' <*> trimmingSpaces typeParser
+  bindings <- many (bindingParser <* char ',')
+  lastBinding <- singleOrEmptyList bindingParser
+  return $ envFromList (bindings ++ lastBinding)
   

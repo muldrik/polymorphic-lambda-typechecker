@@ -53,6 +53,6 @@ main = do
   case runExcept $ parseArgs args of
     Left e -> print $ "Parsing error: " ++ show e
     Right (env, expr, expectedType) -> case runExcept $ inferType env expr of
-      Left e -> print $ "Type inference error:" ++ show e
+      Left e -> print $ "Type inference error: " ++ show e
       Right inferredType -> if alphaEq expectedType inferredType then print "Typecheck successful"
         else print $ "Typechecking failed: actual expression type is " ++ show inferredType ++ " which is not alpha-equivalent to expected type " ++ show expectedType

@@ -105,3 +105,10 @@ trimmingSpaces p = do
   result <- p
   _ <- spaces
   return result
+
+
+singleOrEmptyList :: Parser Char a -> Parser Char [a]
+singleOrEmptyList p = Parser f where
+  f s = case runParser p s of
+    Just (rest, res) -> Just (rest, [res])
+    Nothing -> Just (s, [])
