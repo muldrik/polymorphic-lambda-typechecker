@@ -3,6 +3,8 @@ module Parser where
 
 import Control.Applicative (Alternative(..))
 import Control.Monad (guard)
+import Data.Char (isLower, isLetter ,isDigit, isSpace)
+import Data.List (stripPrefix)
 
 newtype Parser tok a = 
   Parser { runParser :: [tok] ->  Maybe ([tok],a) }
@@ -12,12 +14,6 @@ parserResult p s = do
   (remainder, result) <- runParser p s
   guard $ null remainder 
   return result
-
-
-satisfy :: (tok -> Bool) -> Parser tok tok
-satisfy pr = Parser f where
-  f (c:cs) | pr c  = Just (cs,c)
-  f _              = Nothing
 
 
 instance Functor (Parser tok) where
@@ -64,39 +60,48 @@ instance Monad (Parser tok) where
 instance MonadFail (Parser tok) where
   fail _ = empty
 
+satisfy :: (tok -> Bool) -> Parser tok tok
+satisfy pr = Parser f where
+  f (c:cs) | pr c  = Just (cs,c)
+  f _              = Nothing
 
--- Альтернативы
+lower :: Parser Char Char
+lower = satisfy isLower
 
-{-
-СЕМАНТИКА
-empty - парсер, всегда возвращающий неудачу;
-<|> - пробуем первый, при неудаче пробуем второй на исходной строке.
--}
+letter :: Parser Char Char
+letter = satisfy isLetter
 
+char :: Char -> Parser Char Char
+char c = satisfy (== c)
 
-        
-{-
-> runParser  (char 'A' <|> char 'B') "ABC"
-Just ("BC",'A')
-> runParser  (char 'A' <|> char 'B') "BCD"
-Just ("CD",'B')
-> runParser  (char 'A' <|> char 'B') "CDE"
-Nothing
+digit :: Parser Char Char
+digit = satisfy isDigit
 
-GHCi> runParser (many digit) "42abdef"
-Just ("abdef",[4,2])
-GHCi> runParser (some digit) "42abdef"
-Just ("abdef",[4,2])
+lowers :: Parser Char String
+lowers = (:) <$> lower <*> lowers <|> pure ""
 
-GHCi> runParser (many digit) "abdef"
-Just ("abdef",[])
-GHCi> runParser (some digit) "abdef"
-Nothing
+spaces :: Parser Char String
+spaces = many (satisfy isSpace)
 
-GHCi> runParser (optional digit) "42abdef"
-Just ("2abdef",Just 4)
-GHCi> runParser (optional digit) "abdef"
-Just ("abdef",Nothing)
--}
+str :: String -> Parser Char String
+str goal = Parser f where
+  f s = do
+    rest <- stripPrefix goal s
+    return (rest, goal)
 
--- пример рекурсивного разбора
+insideParentheses :: Parser Char a -> Parser Char a
+insideParentheses p = trimmingSpaces $ do
+  _ <- char '(' <* spaces
+
+  result <- p
+
+  _ <- spaces
+  _ <- char ')'
+  return result
+
+trimmingSpaces :: Parser Char a -> Parser Char a
+trimmingSpaces p = do
+  _ <- spaces
+  result <- p
+  _ <- spaces
+  return result

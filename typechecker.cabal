@@ -24,8 +24,9 @@ maintainer:         muldrik@yandex.ru
 common shared
   default-language: Haskell2010
   build-depends:
-    base ^>=4.14,
-    containers
+    base ^>= 4.14,
+    containers ^>= 0.6,
+    mtl ^>= 2.2.2
   ghc-options:
     -Wall
 
@@ -47,16 +48,16 @@ executable typechecker-executable
     import: shared
     main-is:          Main.hs
     hs-source-dirs:   app
+    build-depends:
+      typechecker
 
 Test-Suite typechecker-test
+    import: shared,
     type:       exitcode-stdio-1.0
     main-is:    Test.hs
     hs-source-dirs: tests
     build-depends: 
-        base,
         typechecker,
         tasty ^>=1.4,
-        containers,
         tasty-hunit,
-        tasty-quickcheck
-    default-language: Haskell2010   
+        tasty-quickcheck,
